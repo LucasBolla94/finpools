@@ -86,32 +86,36 @@ export default function PoolDetails() {
 
           <div className="grid gap-2">
             <input
-              type="number"
-              inputMode="numeric"
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]+(\.[0-9]+)?"
               placeholder="Balance ($)"
               className="input-field"
               value={newEntry.balance}
               onChange={(e) => setNewEntry({ ...newEntry, balance: e.target.value })}
             />
             <input
-              type="number"
-              inputMode="numeric"
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]+(\.[0-9]+)?"
               placeholder="Pending Yield ($)"
               className="input-field"
               value={newEntry.pendingYield}
               onChange={(e) => setNewEntry({ ...newEntry, pendingYield: e.target.value })}
             />
             <input
-              type="number"
-              inputMode="numeric"
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]+(\.[0-9]+)?"
               placeholder="SOL"
               className="input-field"
               value={newEntry.sol}
               onChange={(e) => setNewEntry({ ...newEntry, sol: e.target.value })}
             />
             <input
-              type="number"
-              inputMode="numeric"
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]+(\.[0-9]+)?"
               placeholder="USDC"
               className="input-field"
               value={newEntry.usdc}
