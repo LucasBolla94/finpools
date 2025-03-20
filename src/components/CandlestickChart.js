@@ -1,32 +1,48 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React from "react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 
 export default function CandlestickChart({ entries }) {
-  const [chartData, setChartData] = useState([]);
+  if (!entries || entries.length === 0) return <p className="text-center text-gray-400">Nenhuma entrada registrada.</p>;
 
-  useEffect(() => {
-    if (entries.length > 0) {
-      const formattedData = entries.map((entry) => ({
-        name: new Date(entry.timestamp).toLocaleDateString(),
-        balance: parseFloat(entry.balance),
-        pendingYield: parseFloat(entry.pendingYield),
-      }));
-      setChartData(formattedData);
-    }
-  }, [entries]);
+  // Ordenar entradas por timestamp
+  const sortedEntries = [...entries].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+  // Criar os dados formatados para o gráfico
+  const chartData = sortedEntries.map((entry, index, arr) => {
+    const balance = parseFloat(entry.balance) || 0;
+    const pendingYield = parseFloat(entry.pendingYield) || 0;
+    const totalValue = balance + pendingYield;
+
+    // Valor anterior para comparação
+    const prevTotalValue = index > 0 ? parseFloat(arr[index - 1].balance) + parseFloat(arr[index - 1].pendingYield) : totalValue;
+
+    return {
+      name: new Date(entry.timestamp).toLocaleDateString(),
+      value: totalValue,
+      color: totalValue >= prevTotalValue ? "#4CAF50" : "#FF5252", // Verde se subiu, vermelho se caiu
+    };
+  });
 
   return (
-    <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={chartData}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="name" stroke="#ffffff" />
-        <YAxis stroke="#ffffff" />
-        <Tooltip />
-        <Bar dataKey="balance" fill="#52c41a" /> {/* Verde para saldo positivo */}
-        <Bar dataKey="pendingYield" fill="#ff4d4f" /> {/* Vermelho para yield pendente */}
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="w-full h-64">
+      <h3 className="text-center text-sm text-gray-300 mb-2">
+        📊 O gráfico exibe a evolução do saldo (Balance + Pending Yield). Se o valor atual for maior que o anterior, a barra será verde; caso contrário, será vermelha.
+      </h3>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" />
+          <YAxis />
+          <Tooltip />
+          <Bar dataKey="value" fill="#8884d8">
+            {chartData.map((entry, index) => (
+              <Bar key={index} dataKey="value" fill={entry.color} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
