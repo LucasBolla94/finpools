@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from "recharts";
 
 export default function CandlestickChart({ entries }) {
   if (!entries || entries.length === 0) return <p className="text-center text-gray-400">Nenhuma entrada registrada.</p>;
@@ -36,9 +36,9 @@ export default function CandlestickChart({ entries }) {
           <XAxis dataKey="name" />
           <YAxis />
           <Tooltip />
-          <Bar dataKey="value" fill="#8884d8">
+          <Bar dataKey="value">
             {chartData.map((entry, index) => (
-              <Bar key={index} dataKey="value" fill={entry.color} />
+              <Cell key={`cell-${index}`} fill={entry.color} />
             ))}
           </Bar>
         </BarChart>
