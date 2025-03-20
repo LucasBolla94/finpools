@@ -8,7 +8,7 @@ import Link from "next/link";
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
-  const [pools, setPools] = useState([]); // ✅ Inicializando pools corretamente
+  const [pools, setPools] = useState([]); // ✅ Declarado corretamente
   const [showForm, setShowForm] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -42,7 +42,7 @@ export default function Dashboard() {
       const querySnapshot = await getDocs(q);
       const data = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       
-      console.log("Pools encontradas:", data); // Testar no console
+      console.log("Pools encontradas:", data); // ✅ Verificar no console
       setPools(data);
     } catch (error) {
       console.error("Erro ao buscar pools:", error);
