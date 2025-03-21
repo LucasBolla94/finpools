@@ -1,15 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
-import { collection, getDocs, addDoc, query, where, orderBy, limit } from "firebase/firestore";
+import { useParams, useRouter } from "next/navigation";
+import { collection, getDocs, addDoc, deleteDoc, doc, query, where, orderBy, limit } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 import { db } from "@/lib/firebaseConfig";
 import CandlestickChart from "@/components/CandlestickChart";
 
 export default function PoolDetails() {
-  const params = useParams();
-  const { id } = params;
+  const router = useRouter();
+  const { id } = useParams();
+  const auth = getAuth();
+  const user = auth.currentUser;
 
+  const [hasPool, setHasPool] = useState(false);
   const [entries, setEntries] = useState([]);
   const [deposits, setDeposits] = useState([]);
   const [lastEntry, setLastEntry] = useState(null);
@@ -17,19 +21,41 @@ export default function PoolDetails() {
   const [percentageChange, setPercentageChange] = useState(0);
   const [entriesLimit, setEntriesLimit] = useState(10);
   const [depositsLimit, setDepositsLimit] = useState(10);
-
   const [showEntryForm, setShowEntryForm] = useState(false);
   const [showDepositForm, setShowDepositForm] = useState(false);
   const [message, setMessage] = useState("");
-
   const [newEntry, setNewEntry] = useState({ balance: "", pendingYield: "", sol: "", usdc: "" });
   const [newDeposit, setNewDeposit] = useState({ total: "", sol: "", usdc: "" });
 
   useEffect(() => {
+    checkUserPool();
     if (!id) return;
     fetchEntries();
     fetchDeposits();
   }, [id, entriesLimit, depositsLimit]);
+
+  const checkUserPool = async () => {
+    if (!user) return;
+    const q = query(collection(db, "pools"), where("owner", "==", user.uid), limit(1));
+    const snap = await getDocs(q);
+    setHasPool(!snap.empty);
+  };
+
+  const createPool = async () => {
+    if (!user) return;
+    await addDoc(collection(db, "pools"), { owner: user.uid, createdAt: new Date().toISOString() });
+    setHasPool(true);
+    setMessage("✅ Pool criada com sucesso!");
+    setTimeout(() => setMessage(""), 3000);
+  };
+
+  const deletePool = async () => {
+    if (!id) return;
+    await deleteDoc(doc(db, "pools", id));
+    setHasPool(false);
+    setMessage("🗑️ Pool deletada com sucesso!");
+    setTimeout(() => setMessage(""), 3000);
+  };
 
   const fetchEntries = async () => {
     const q = query(
@@ -38,12 +64,10 @@ export default function PoolDetails() {
       orderBy("timestamp", "desc"),
       limit(entriesLimit)
     );
-
-    const querySnapshot = await getDocs(q);
-    const data = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-
+    const snapshot = await getDocs(q);
+    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     setEntries(data);
-    if (data.length > 0) {
+    if (data.length) {
       setLastEntry(data[0]);
       if (data.length > 1) {
         setPreviousEntry(data[1]);
@@ -53,12 +77,7 @@ export default function PoolDetails() {
   };
 
   const calculatePercentageChange = (current, previous) => {
-    if (previous > 0) {
-      const change = ((current - previous) / previous) * 100;
-      setPercentageChange(change.toFixed(2));
-    } else {
-      setPercentageChange(0);
-    }
+    setPercentageChange(previous > 0 ? (((current - previous) / previous) * 100).toFixed(2) : 0);
   };
 
   const fetchDeposits = async () => {
@@ -68,21 +87,12 @@ export default function PoolDetails() {
       orderBy("timestamp", "desc"),
       limit(depositsLimit)
     );
-
-    const querySnapshot = await getDocs(q);
-    const data = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    setDeposits(data);
+    const snapshot = await getDocs(q);
+    setDeposits(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
   };
 
   const addEntry = async () => {
-    await addDoc(collection(db, "entries"), {
-      poolId: id,
-      balance: newEntry.balance,
-      pendingYield: newEntry.pendingYield,
-      sol: newEntry.sol,
-      usdc: newEntry.usdc,
-      timestamp: new Date().toISOString(),
-    });
+    await addDoc(collection(db, "entries"), { poolId: id, ...newEntry, timestamp: new Date().toISOString() });
     setNewEntry({ balance: "", pendingYield: "", sol: "", usdc: "" });
     setShowEntryForm(false);
     setMessage("✅ Entrada adicionada com sucesso!");
@@ -91,13 +101,7 @@ export default function PoolDetails() {
   };
 
   const addDeposit = async () => {
-    await addDoc(collection(db, "deposits"), {
-      poolId: id,
-      total: newDeposit.total,
-      sol: newDeposit.sol,
-      usdc: newDeposit.usdc,
-      timestamp: new Date().toISOString(),
-    });
+    await addDoc(collection(db, "deposits"), { poolId: id, ...newDeposit, timestamp: new Date().toISOString() });
     setNewDeposit({ total: "", sol: "", usdc: "" });
     setShowDepositForm(false);
     setMessage("✅ Depósito adicionado com sucesso!");
@@ -107,20 +111,20 @@ export default function PoolDetails() {
 
   return (
     <div className="min-h-screen bg-primary text-white p-6">
+      <div className="flex justify-between mb-4">
+        {!hasPool && <button onClick={createPool} className="bg-green-600 px-4 py-2 rounded">➕ Criar Pool</button>}
+        {hasPool && <button onClick={deletePool} className="bg-red-600 px-4 py-2 rounded">🗑️ Deletar Pool</button>}
+      </div>
+      <button onClick={() => router.back()} className="mb-4 text-sm font-medium hover:underline">← Voltar</button>
       <h1 className="text-2xl font-bold text-center">📌 Detalhes da Pool</h1>
-
-      {message && (
-        <div className="text-center text-green-400 mt-4 font-medium">
-          {message}
-        </div>
-      )}
+      {message && <div className="text-center text-green-400 mt-4 font-medium">{message}</div>}
 
       {/* 🔹 RESUMO TOTAL */}
       <div className="mt-6 p-6 bg-gray-900 rounded-lg text-center">
         <h2 className="text-lg font-bold">💰 Resumo Total</h2>
         <p className="text-xl mt-2">💵 Pending Yield: <span className="text-yellow-400">${lastEntry?.pendingYield || "0.00"}</span></p>
         <p className="text-xl">📥 Balance Total: <span className="text-green-400">${lastEntry?.balance || "0.00"}</span></p>
-        <p className="text-xl">💵 Total de Depósitos: <span className="text-blue-400">${deposits.reduce((acc, deposit) => acc + parseFloat(deposit.total || 0), 0).toFixed(2)}</span></p>
+        <p className="text-xl">💵 Total de Depósitos: <span className="text-blue-400">${deposits.reduce((a, d) => a + parseFloat(d.total || "0"), 0).toFixed(2)}</span></p>
       </div>
 
       {/* 🔹 ÚLTIMA ENTRADA DETALHADA */}
@@ -129,13 +133,7 @@ export default function PoolDetails() {
           <h2 className="text-lg font-bold">📊 Última Atualização</h2>
           <p>Balance: <span className="text-green-400">${lastEntry.balance}</span> | Pending Yield: <span className="text-yellow-400">${lastEntry.pendingYield}</span></p>
           <p>SOL: <span className="text-blue-400">{lastEntry.sol}</span> | USDC: <span className="text-blue-400">{lastEntry.usdc}</span></p>
-          <p className="text-gray-400">
-            📅 {new Date(lastEntry.timestamp).toLocaleString()} /{" "}
-            <span className={percentageChange >= 0 ? "text-green-400" : "text-red-400"}>
-              {percentageChange >= 0 ? "+" : ""}
-              {percentageChange}%
-            </span>
-          </p>
+          <p className="text-gray-400">📅 {new Date(lastEntry.timestamp).toLocaleString()} / <span className={percentageChange >= 0 ? "text-green-400" : "text-red-400"}>{percentageChange}%</span></p>
         </div>
       )}
 
@@ -146,8 +144,7 @@ export default function PoolDetails() {
           <CandlestickChart entries={entries} />
         </div>
       )}
-
-      {/* 🔹 FORMULÁRIO ENTRADA */}
+ {/* 🔹 FORMULÁRIO ENTRADA */}
       <div className="mt-6 p-6 bg-gray-800 rounded-lg">
         <div className="flex justify-between items-center mb-2">
           <h2 className="text-lg font-bold">➕ Nova Entrada</h2>
